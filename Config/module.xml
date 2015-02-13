@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module>
+    <fullnamespace>DuplicateOrder\DuplicateOrder</fullnamespace>
+    <descriptive locale="en_US">
+        <title>Duplicate order</title>
+    </descriptive>
+    <descriptive locale="fr_FR">
+        <title>Module qui permet de dupliquer un commande</title>
+    </descriptive>
+    <version>1.0</version>
+    <author>
+        <name>Vincent Lopes-Vicente</name>
+        <email>vlopes@openstudio.fr</email>
+    </author>
+    <type>classic</type>
+    <thelia>2.1.0</thelia>
+    <stability>other</stability>
+</module>
