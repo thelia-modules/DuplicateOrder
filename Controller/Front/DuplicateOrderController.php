@@ -6,16 +6,12 @@ use DuplicateOrder\Event\DuplicateOrderEvent;
 use DuplicateOrder\Form\Front\DuplicateOrderForm;
 use Thelia\Controller\Front\BaseFrontController;
 use Thelia\Core\Event\Cart\CartEvent;
+use Thelia\Core\Event\Cart\CartPersistEvent;
 use Thelia\Core\Event\TheliaEvents;
 use Thelia\Form\Exception\FormValidationException;
 use Thelia\Log\Tlog;
-use Thelia\Model\Cart;
-use Thelia\Model\CartItem;
 use Thelia\Model\OrderQuery;
-use Thelia\Model\ProductPriceQuery;
 use Thelia\Model\ProductQuery;
-use Thelia\Model\ProductSaleElementsQuery;
-use Thelia\Tools\URL;
 
 class DuplicateOrderController extends BaseFrontController
 {
@@ -27,8 +23,7 @@ class DuplicateOrderController extends BaseFrontController
 
         try {
 
-            $form = $this->validateForm($duplicateForm);
-            $data = $form->getData($form);
+            $data = $this->validateForm($duplicateForm)->getData();
 
             $orderId = $data['order-id'];
             $order = OrderQuery::create()->findOneById($orderId);
@@ -36,31 +31,39 @@ class DuplicateOrderController extends BaseFrontController
             $orderProducts = $order->getOrderProducts();
 
             if ($orderProducts !== null) {
-
+                $dispatcher = $this->getDispatcher();
                 $cart = $this->getSession()->getSessionCart($this->getDispatcher());
-                $cItems = $cart->getCartItemsJoinProductSaleElements();
+                $cartEvent = new CartEvent($cart);
 
-                //Delete items in cart
-                foreach ($cItems as $cItem) {
-                    $cartDelete = new Cart();
-                    $cartDelete->addCartItem($cItem);
-                    $cartEvent = new CartEvent($cartDelete);
-                    $this->dispatch(TheliaEvents::CART_DELETEITEM, $cartEvent);
+                if (null !== $cart->getId()) {
+                    $dispatcher->dispatch(TheliaEvents::CART_CLEAR, $cartEvent);
+                    $cart = $this->getRequest()->getSession()->getSessionCart($dispatcher);
                 }
 
-                $cart->clearCartItems();
+                if ($cart->isNew()) {
+                    $persistEvent = new CartPersistEvent($cart);
+                    $dispatcher->dispatch(TheliaEvents::CART_PERSIST, $persistEvent);
+                }
 
                 $orderProductsArray = array();
 
                 //Fill cart with order products
                 /** @var \Thelia\Model\OrderProduct $orderProduct */
                 foreach ($orderProducts as $orderProduct) {
-
                     $newEvent = new CartEvent($cart);
                     $newEvent->setQuantity($orderProduct->getQuantity());
-                    $product = ProductQuery::create()->findOneByRef($orderProduct->getProductRef());
+                    $product = ProductQuery::create()
+                        ->filterByVisible(true)
+                        ->filterByRef($orderProduct->getProductRef())
+                        ->findOne();
+
+                    if (null === $product) {
+                        continue;
+                    }
+
                     $newEvent->setProduct($product->getId());
-                    $newEvent->setNewness(1);
+                    $newEvent->setNewness(true);
+                    $newEvent->setAppend(false);
                     $newEvent->setProductSaleElementsId($orderProduct->getProductSaleElementsId());
 
                     $this->dispatch(TheliaEvents::CART_ADDITEM, $newEvent);
@@ -68,7 +71,7 @@ class DuplicateOrderController extends BaseFrontController
                     $orderProductsArray[] = $orderProduct;
                 }
 
-                $cartItems = $newEvent->getCart()->getCartItems()->getData();
+                $cartItems = $cart->getCartItems()->getData();
 
                 $duplicateEvent = new DuplicateOrderEvent($orderProductsArray, $cartItems);
                 $this->dispatch(DuplicateOrderEvent::DUPLICATE_PRODUCT, $duplicateEvent);
