@@ -12,6 +12,7 @@ use Thelia\Form\Exception\FormValidationException;
 use Thelia\Log\Tlog;
 use Thelia\Model\OrderQuery;
 use Thelia\Model\ProductQuery;
+use Thelia\Model\ProductSaleElementsQuery;
 
 class DuplicateOrderController extends BaseFrontController
 {
@@ -61,10 +62,24 @@ class DuplicateOrderController extends BaseFrontController
                         continue;
                     }
 
+                    $pse = ProductSaleElementsQuery::create()
+                        ->filterById($orderProduct->getProductSaleElementsId())
+                        ->findOne();
+
+                    if (null === $pse) {
+                        $pse = ProductSaleElementsQuery::create()
+                            ->filterByRef($orderProduct->getProductSaleElementsRef())
+                            ->findOne();
+                    }
+
+                    if (null === $pse) {
+                        continue;
+                    }
+
                     $newEvent->setProduct($product->getId());
                     $newEvent->setNewness(true);
                     $newEvent->setAppend(false);
-                    $newEvent->setProductSaleElementsId($orderProduct->getProductSaleElementsId());
+                    $newEvent->setProductSaleElementsId($pse->getId());
 
                     $this->dispatch(TheliaEvents::CART_ADDITEM, $newEvent);
 
