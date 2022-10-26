@@ -4,11 +4,13 @@ namespace DuplicateOrder\Controller\Front;
 
 use DuplicateOrder\Event\DuplicateOrderEvent;
 use DuplicateOrder\Form\Front\DuplicateOrderForm;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Thelia\Controller\Front\BaseFrontController;
 use Thelia\Core\Event\Cart\CartEvent;
 use Thelia\Core\Event\Cart\CartPersistEvent;
 use Thelia\Core\Event\TheliaEvents;
-use Thelia\Form\Exception\FormValidationException;
+use Thelia\Core\HttpFoundation\Session\Session;
+use Thelia\Core\Template\ParserContext;
 use Thelia\Log\Tlog;
 use Thelia\Model\OrderQuery;
 use Thelia\Model\ProductQuery;
@@ -16,11 +18,12 @@ use Thelia\Model\ProductSaleElementsQuery;
 
 class DuplicateOrderController extends BaseFrontController
 {
-    public function duplicateOrder()
-    {
-        $message = null;
-
-        $duplicateForm = new DuplicateOrderForm($this->getRequest());
+    public function duplicateOrder(
+        EventDispatcherInterface $dispatcher,
+        Session $session,
+        ParserContext $parserContext
+    ) {
+        $duplicateForm = $this->createForm(DuplicateOrderForm::getName());
 
         try {
 
@@ -32,18 +35,16 @@ class DuplicateOrderController extends BaseFrontController
             $orderProducts = $order->getOrderProducts();
 
             if ($orderProducts !== null) {
-                $dispatcher = $this->getDispatcher();
-                $cart = $this->getSession()->getSessionCart($this->getDispatcher());
+                $cart = $session->getSessionCart($dispatcher);
                 $cartEvent = new CartEvent($cart);
 
                 if (null !== $cart->getId()) {
-                    $dispatcher->dispatch(TheliaEvents::CART_CLEAR, $cartEvent);
-                    $cart = $this->getRequest()->getSession()->getSessionCart($dispatcher);
+                    $dispatcher->dispatch( $cartEvent,TheliaEvents::CART_CLEAR);
+                    $cart = $session->getSessionCart($dispatcher);
                 }
 
                 if ($cart->isNew()) {
-                    $persistEvent = new CartPersistEvent($cart);
-                    $dispatcher->dispatch(TheliaEvents::CART_PERSIST, $persistEvent);
+                    $dispatcher->dispatch(new CartPersistEvent($cart), TheliaEvents::CART_PERSIST);
                 }
 
                 $orderProductsArray = array();
@@ -81,40 +82,39 @@ class DuplicateOrderController extends BaseFrontController
                     $newEvent->setAppend(false);
                     $newEvent->setProductSaleElementsId($pse->getId());
 
-                    $this->dispatch(TheliaEvents::CART_ADDITEM, $newEvent);
-
+                    $dispatcher->dispatch($newEvent,TheliaEvents::CART_ADDITEM);
                     $orderProductsArray[] = $orderProduct;
                 }
 
                 $cartItems = $cart->getCartItems()->getData();
 
-                $duplicateEvent = new DuplicateOrderEvent($orderProductsArray, $cartItems);
-                $this->dispatch(DuplicateOrderEvent::DUPLICATE_PRODUCT, $duplicateEvent);
+                $dispatcher->dispatch(
+                    new DuplicateOrderEvent($orderProductsArray, $cartItems),
+                    DuplicateOrderEvent::DUPLICATE_PRODUCT
+                );
 
                 return $this->generateSuccessRedirect($duplicateForm);
             }
 
-        } catch (FormValidationException $e) {
-            $message = $e->getMessage();
+            $message = "Order product was not found";
         } catch (\Exception $e) {
             $message = $e->getMessage();
         }
 
-        if ($message !== null) {
-            Tlog::getInstance()->error(
-                sprintf(
-                    "Error during duplication process : %s. Exception was %s",
-                    $message,
-                    $e->getMessage()
-                )
-            );
+        Tlog::getInstance()->error(
+            sprintf(
+                "Error during duplication process : %s",
+                $message
+            )
+        );
 
-            $duplicateForm->setErrorMessage($message);
+        $duplicateForm->setErrorMessage($message);
 
-            $this->getParserContext()
-                ->addForm($duplicateForm)
-                ->setGeneralError($message)
-            ;
-        }
+        $parserContext
+            ->addForm($duplicateForm)
+            ->setGeneralError($message)
+        ;
+
+        return $this->generateErrorRedirect($duplicateForm);
     }
 }

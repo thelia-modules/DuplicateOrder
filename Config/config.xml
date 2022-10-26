@@ -30,7 +30,7 @@
     -->
 
     <hooks>
-        <hook id="duplicateorder.hook" class="DuplicateOrder\Hook\OrderDetailsHook" scope="request">
+        <hook id="duplicateorder.hook" class="DuplicateOrder\Hook\OrderDetailsHook">
             <tag name="hook.event_listener" event="account-order.bottom" type="front" method="onAccountOrderBottom" />
         </hook>
     </hooks>
