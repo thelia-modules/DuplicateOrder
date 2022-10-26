@@ -3,6 +3,7 @@
 namespace DuplicateOrder\Form\Front;
 
 
+use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Validator\Constraints\NotBlank;
 use Thelia\Form\BaseForm;
 
@@ -13,7 +14,7 @@ class DuplicateOrderForm extends BaseForm
         $this->formBuilder
             ->add(
                 'order-id',
-                'text',
+                TextType::class,
                 array(
                     'constraints'   => array(new NotBlank()),
                     'required'      => true
@@ -21,7 +22,7 @@ class DuplicateOrderForm extends BaseForm
             );
     }
 
-    public function getName()
+    public static function getName()
     {
         return "duplicate_order";
     }
