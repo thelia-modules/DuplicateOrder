@@ -9,7 +9,7 @@ use Thelia\Form\BaseForm;
 
 class DuplicateOrderForm extends BaseForm
 {
-    protected function buildForm()
+    protected function buildForm(): void
     {
         $this->formBuilder
             ->add(
@@ -22,7 +22,7 @@ class DuplicateOrderForm extends BaseForm
             );
     }
 
-    public static function getName()
+    public static function getName(): string
     {
         return "duplicate_order";
     }

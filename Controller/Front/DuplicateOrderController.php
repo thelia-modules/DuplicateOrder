@@ -5,6 +5,7 @@ namespace DuplicateOrder\Controller\Front;
 use DuplicateOrder\Event\DuplicateOrderEvent;
 use DuplicateOrder\Form\Front\DuplicateOrderForm;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Thelia\Controller\Front\BaseFrontController;
 use Thelia\Core\Event\Cart\CartEvent;
 use Thelia\Core\Event\Cart\CartPersistEvent;
@@ -12,6 +13,7 @@ use Thelia\Core\Event\TheliaEvents;
 use Thelia\Core\HttpFoundation\Session\Session;
 use Thelia\Core\Template\ParserContext;
 use Thelia\Log\Tlog;
+use Thelia\Model\OrderProduct;
 use Thelia\Model\OrderQuery;
 use Thelia\Model\ProductQuery;
 use Thelia\Model\ProductSaleElementsQuery;
@@ -22,7 +24,8 @@ class DuplicateOrderController extends BaseFrontController
         EventDispatcherInterface $dispatcher,
         Session $session,
         ParserContext $parserContext
-    ) {
+    ): ?RedirectResponse
+    {
         $duplicateForm = $this->createForm(DuplicateOrderForm::getName());
 
         try {
@@ -50,7 +53,7 @@ class DuplicateOrderController extends BaseFrontController
                 $orderProductsArray = array();
 
                 //Fill cart with order products
-                /** @var \Thelia\Model\OrderProduct $orderProduct */
+                /** @var OrderProduct $orderProduct */
                 foreach ($orderProducts as $orderProduct) {
                     $newEvent = new CartEvent($cart);
                     $newEvent->setQuantity($orderProduct->getQuantity());
@@ -77,7 +80,7 @@ class DuplicateOrderController extends BaseFrontController
                         continue;
                     }
 
-                    $newEvent->setProduct($product->getId());
+                    $newEvent->setProductId($product->getId());
                     $newEvent->setNewness(true);
                     $newEvent->setAppend(false);
                     $newEvent->setProductSaleElementsId($pse->getId());

@@ -21,7 +21,7 @@ class DuplicateOrderEvent extends ActionEvent
         return $this->orderProducts;
     }
 
-    public function setOrderProducts($orderProducts)
+    public function setOrderProducts($orderProducts): void
     {
         $this->orderProducts = $orderProducts;
     }
@@ -31,7 +31,7 @@ class DuplicateOrderEvent extends ActionEvent
         return $this->cartItems;
     }
 
-    public function setCartItems($cartItems)
+    public function setCartItems($cartItems): void
     {
         $this->cartItems = $cartItems;
     }
