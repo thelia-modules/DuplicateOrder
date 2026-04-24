@@ -7,7 +7,7 @@ use Thelia\Core\Hook\BaseHook;
 
 class OrderDetailsHook extends BaseHook
 {
-    public function onAccountOrderBottom(HookRenderEvent $event)
+    public function onAccountOrderBottom(HookRenderEvent $event): void
     {
         $content = $this->render("duplicate-order.html", ["orderId"=>$event->getArgument("order")]);
 
