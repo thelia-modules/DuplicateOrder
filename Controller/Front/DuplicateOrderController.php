@@ -6,6 +6,7 @@ use DuplicateOrder\Event\DuplicateOrderEvent;
 use DuplicateOrder\Form\Front\DuplicateOrderForm;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
+use Symfony\Component\Routing\Attribute\Route;
 use Thelia\Controller\Front\BaseFrontController;
 use Thelia\Core\Event\Cart\CartEvent;
 use Thelia\Core\Event\Cart\CartPersistEvent;
@@ -18,8 +19,10 @@ use Thelia\Model\OrderQuery;
 use Thelia\Model\ProductQuery;
 use Thelia\Model\ProductSaleElementsQuery;
 
+#[Route(path: '/order/duplicate', name: 'duplicate_order')]
 class DuplicateOrderController extends BaseFrontController
 {
+    #[Route(path: '', name: 'duplicate_order_form')]
     public function duplicateOrder(
         EventDispatcherInterface $dispatcher,
         Session $session,
