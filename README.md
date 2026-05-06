@@ -7,8 +7,8 @@ During the duplication of the order all the products of the order to be duplicat
 
 ### Manually
 
-* Copy the module into ```<thelia_root>/local/modules/``` directory and be sure that the name of the module is DuplicateOrder.
-* Activate it in your thelia administration panel
+- Copy the module into `<thelia_root>/local/modules/` directory and be sure that the name of the module is DuplicateOrder.
+- Activate it in your thelia administration panel
 
 ### Composer
 
@@ -21,3 +21,13 @@ composer require thelia/duplicate-order-module:~2.0.0
 ## Usage
 
 There is nothing to do, a button "duplicate order" will appear automatically to the summary page for each command.
+
+### For thelia 3
+
+You need to include the Twig component into your template :
+
+```twig
+  {{ component('DuplicateOrder', {
+      orderId: this.order.id,
+  }) }}
+```

@@ -1,0 +1,53 @@
+<div {{ attributes }}>
+  {{ component('Flexy:Button', {
+      text: 'Dupliquer la commande'|trans,
+      color: 'tertiary',
+      attributes: {
+          'data-modal-target': 'confirmDuplicate-' ~ this.order.id,
+          'data-action': 'order-card#openModal',
+      }
+  }) }}
+
+  {% set confirmDuplicate %}
+      <div class="h4 mb-4">
+          {{ 'Êtes vous sur de vouloir dupliquer cette commande ?'|trans }}
+      </div>
+
+      {{ include(
+        '@components/Organisms/SnackBar/SnackBar.html.twig', {
+          text: 'Attention, votre panier actuel va être écrasé et remplacé par celui de votre commande! Êtes vous sur de vouloir continuer?'|trans,
+          variant: 'warning',
+          withIcon: false,
+          size: 'small'
+      }) }}
+
+      {{ form_start(form, {attr: {
+          class: "grid md:grid-cols-2 gap-4 mt-8",
+          method: 'POST',
+          action: '/order/duplicate',
+      }}) }}
+          <button type="button" class="Button Button--tertiary Button--fill" data-action="modal#close">
+              {{ 'Annuler'|trans }}
+          </button>
+
+          <button
+              type="submit"
+              class="Button Button--fill"
+          >
+              {{ 'Valider'|trans }}
+          </button>
+
+          {{ form_row(form['order-id'], {
+              type: "hidden"
+          }) }}
+          {{ form_row(form.success_url, {
+              value: '/checkout/cart'
+          }) }}
+      {{ form_end(form) }}
+  {% endset %}
+
+  {{ include('@components/Molecules/Modal/Modal.html.twig', {
+      name: 'confirmDuplicate-' ~ this.order.id,
+      content: confirmDuplicate,
+  }) }}
+</div>
