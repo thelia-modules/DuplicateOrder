@@ -17,6 +17,8 @@ use Thelia\Module\BaseModule;
 
 class DuplicateOrder extends BaseModule
 {
+    public const DOMAIN_NAME = 'duplicateorder';
+
     public static function configureServices(ServicesConfigurator $servicesConfigurator): void
     {
         $servicesConfigurator->load(self::getModuleCode().'\\', __DIR__)

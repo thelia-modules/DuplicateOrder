@@ -1,53 +1,35 @@
-<div {{ attributes }}>
-  {{ component('Flexy:Button', {
-      text: 'Dupliquer la commande'|trans,
-      color: 'tertiary',
-      attributes: {
-          'data-modal-target': 'confirmDuplicate-' ~ this.order.id,
-          'data-action': 'order-card#openModal',
-      }
-  }) }}
+{% set modalId = 'duplicate-order-' ~ this.orderId %}
+{% set labels = this.labels %}
+{% set form = this.form %}
+{# Read here: inside the modal's content, `this` is the modal component. #}
+{% set orderId = this.orderId %}
+{% set action = this.action %}
+{% set successUrl = this.successUrl %}
+{% set errorUrl = this.errorUrl %}
+<div {{ attributes.defaults({class: 'DuplicateOrder container-m pb-14 md:pb-24'}) }}>
+    <twig:Molecules:Button:Base
+        color="secondary"
+        icon_left="cart"
+        text="{{ labels.button }}"
+        {{ ...stimulus_controller('Molecules--Modal--open', {id: modalId}) }}
+        {{ ...stimulus_action('Molecules--Modal--open', 'open', 'click') }}
+    />
 
-  {% set confirmDuplicate %}
-      <div class="h4 mb-4">
-          {{ 'Êtes vous sur de vouloir dupliquer cette commande ?'|trans }}
-      </div>
-
-      {{ include(
-        '@components/Organisms/SnackBar/SnackBar.html.twig', {
-          text: 'Attention, votre panier actuel va être écrasé et remplacé par celui de votre commande! Êtes vous sur de vouloir continuer?'|trans,
-          variant: 'warning',
-          withIcon: false,
-          size: 'small'
-      }) }}
-
-      {{ form_start(form, {attr: {
-          class: "grid md:grid-cols-2 gap-4 mt-8",
-          method: 'POST',
-          action: '/order/duplicate',
-      }}) }}
-          <button type="button" class="Button Button--tertiary Button--fill" data-action="modal#close">
-              {{ 'Annuler'|trans }}
-          </button>
-
-          <button
-              type="submit"
-              class="Button Button--fill"
-          >
-              {{ 'Valider'|trans }}
-          </button>
-
-          {{ form_row(form['order-id'], {
-              type: "hidden"
-          }) }}
-          {{ form_row(form.success_url, {
-              value: '/checkout/cart'
-          }) }}
-      {{ form_end(form) }}
-  {% endset %}
-
-  {{ include('@components/Molecules/Modal/Modal.html.twig', {
-      name: 'confirmDuplicate-' ~ this.order.id,
-      content: confirmDuplicate,
-  }) }}
+    <twig:Molecules:Modal:Base id="{{ modalId }}">
+        <div class="h4 mb-4">{{ labels.title }}</div>
+        <twig:Molecules:SnackBar:Base variant="warning" text="{{ labels.warning }}" />
+        <form method="post" action="{{ action }}" class="grid md:grid-cols-2 gap-4 mt-8">
+            <input type="hidden" name="{{ field_name(form['order-id']) }}" value="{{ orderId }}">
+            <input type="hidden" name="{{ field_name(form.success_url) }}" value="{{ successUrl }}">
+            <input type="hidden" name="{{ field_name(form.error_url) }}" value="{{ errorUrl }}">
+            <input type="hidden" name="{{ field_name(form._token) }}" value="{{ form._token.vars.value }}">
+            <twig:Molecules:Button:Base
+                text="{{ labels.cancel }}"
+                color="secondary"
+                :fill="true"
+                {{ ...stimulus_action('Molecules--Modal--base', 'close', 'click') }}
+            />
+            <twig:Molecules:Button:Base text="{{ labels.confirm }}" type="submit" :fill="true" />
+        </form>
+    </twig:Molecules:Modal:Base>
 </div>
