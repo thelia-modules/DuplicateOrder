@@ -1,0 +1,8 @@
+{# Why the last renewal changed nothing, at the top of the order page (Hook/Theme/RenewalErrorThemeHook).
+   Escaped here: the SnackBar of Flexy prints its text raw. #}
+<div class="container-m">
+    {% for error in errors %}
+        {% set text %}<p>{{ error.message }}</p>{% if error.products is not empty %}<ul>{% for product in error.products %}<li>{{ product }}</li>{% endfor %}</ul>{% endif %}{% endset %}
+        <twig:Molecules:SnackBar:Base variant="error" :withIcon="true" :text="text" class="mb-6" data-duplicate-order-error="true" />
+    {% endfor %}
+</div>

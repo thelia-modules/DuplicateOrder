@@ -2,25 +2,21 @@
 
 namespace DuplicateOrder\Controller\Front;
 
-use DuplicateOrder\Event\DuplicateOrderEvent;
+use DuplicateOrder\DuplicateOrder;
 use DuplicateOrder\Form\Front\DuplicateOrderForm;
-use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use DuplicateOrder\Service\NothingToRenewException;
+use DuplicateOrder\Service\OrderRenewal;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Exception\RouteNotFoundException;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Thelia\Controller\Front\BaseFrontController;
-use Thelia\Core\Event\Cart\CartEvent;
-use Thelia\Core\Event\Cart\CartPersistEvent;
-use Thelia\Core\Event\TheliaEvents;
 use Thelia\Core\HttpFoundation\Session\Session;
 use Thelia\Core\Template\ParserContext;
+use Thelia\Core\Translation\Translator;
 use Thelia\Form\Exception\FormValidationException;
 use Thelia\Log\Tlog;
-use Thelia\Model\OrderProduct;
 use Thelia\Model\OrderQuery;
-use Thelia\Model\ProductQuery;
-use Thelia\Model\ProductSaleElementsQuery;
 use Thelia\Tools\URL;
 
 #[Route(path: '/order/duplicate', name: 'duplicate_order')]
@@ -42,9 +38,14 @@ class DuplicateOrderController extends BaseFrontController
         }
     }
 
+    /**
+     * Replaces the cart with the products of the order (OrderRenewal). The products left out and
+     * those put back with a lower quantity are named to the customer on the cart page; when
+     * nothing was renewed, the cart is as it was and the reason is told at the top of the order page.
+     */
     #[Route(path: '', name: 'duplicate_order_form', methods: ['POST'])]
     public function duplicateOrder(
-        EventDispatcherInterface $dispatcher,
+        OrderRenewal $renewal,
         Session $session,
         ParserContext $parserContext
     ): ?RedirectResponse
@@ -53,6 +54,7 @@ class DuplicateOrderController extends BaseFrontController
         $this->checkAuth();
 
         $duplicateForm = $this->createForm(DuplicateOrderForm::getName());
+        $products = [];
 
         try {
             $data = $this->validateForm($duplicateForm, 'post')->getData();
@@ -63,86 +65,29 @@ class DuplicateOrderController extends BaseFrontController
                 ->filterByCustomerId($this->getSecurityContext()->getCustomerUser()->getId())
                 ->findPk((int) $data['order-id']);
 
-            if (null !== $order) {
-                $orderProducts = $order->getOrderProducts();
+            if (null === $order) {
+                $message = self::trans('This order cannot be renewed.');
+            } else {
+                $report = $renewal->renew($order, $session);
 
-                $cart = $session->getSessionCart($dispatcher);
-                $cartEvent = new CartEvent($cart);
-
-                if (null !== $cart->getId()) {
-                    $dispatcher->dispatch($cartEvent, TheliaEvents::CART_CLEAR);
-                    $cart = $session->getSessionCart($dispatcher);
+                if (!$report->isComplete()) {
+                    $session->getFlashBag()->add(DuplicateOrder::REPORT_FLASH, $report->toArray());
                 }
-
-                if ($cart->isNew()) {
-                    $dispatcher->dispatch(new CartPersistEvent($cart), TheliaEvents::CART_PERSIST);
-                }
-
-                $orderProductsArray = array();
-
-                //Fill cart with order products
-                /** @var OrderProduct $orderProduct */
-                foreach ($orderProducts as $orderProduct) {
-                    $newEvent = new CartEvent($cart);
-                    $newEvent->setQuantity($orderProduct->getQuantity());
-                    $product = ProductQuery::create()
-                        ->filterByVisible(1)
-                        ->filterByRef($orderProduct->getProductRef())
-                        ->findOne();
-
-                    if (null === $product) {
-                        continue;
-                    }
-
-                    $pse = ProductSaleElementsQuery::create()
-                        ->filterByProductId($product->getId())
-                        ->filterById($orderProduct->getProductSaleElementsId())
-                        ->findOne();
-
-                    if (null === $pse) {
-                        $pse = ProductSaleElementsQuery::create()
-                            ->filterByProductId($product->getId())
-                            ->filterByRef($orderProduct->getProductSaleElementsRef())
-                            ->findOne();
-                    }
-
-                    if (null === $pse) {
-                        continue;
-                    }
-
-                    $newEvent->setProductId($product->getId());
-                    $newEvent->setNewness(true);
-                    $newEvent->setAppend(false);
-                    $newEvent->setProductSaleElementsId($pse->getId());
-
-                    $dispatcher->dispatch($newEvent, TheliaEvents::CART_ADDITEM);
-                    $orderProductsArray[] = $orderProduct;
-                }
-
-                $cartItems = $cart->getCartItems()->getData();
-
-                $dispatcher->dispatch(
-                    new DuplicateOrderEvent($orderProductsArray, $cartItems),
-                    DuplicateOrderEvent::DUPLICATE_PRODUCT
-                );
 
                 return $this->generateSuccessRedirect($duplicateForm);
             }
-
-            $message = "Order was not found";
         } catch (FormValidationException $e) {
             $message = $e->getMessage();
-        } catch (\Exception $e) {
+        } catch (NothingToRenewException $e) {
             $message = $e->getMessage();
+            $products = $e->leftOut;
+        } catch (\Throwable $e) {
+            $message = self::trans('Your order could not be renewed, your cart is unchanged. Please try again.');
 
-            Tlog::getInstance()->error(
-                sprintf(
-                    "Error during duplication process : %s",
-                    $message
-                )
-            );
+            Tlog::getInstance()->error(sprintf('Error during duplication process : %s', $e->getMessage()));
         }
 
+        $session->getFlashBag()->add(DuplicateOrder::ORDER_FLASH, ['message' => $message, 'products' => $products]);
         $duplicateForm->setErrorMessage($message);
 
         $parserContext
@@ -151,5 +96,13 @@ class DuplicateOrderController extends BaseFrontController
         ;
 
         return $this->generateErrorRedirect($duplicateForm);
+    }
+
+    /**
+     * @param array<string, string> $parameters
+     */
+    private static function trans(string $message, array $parameters = []): string
+    {
+        return Translator::getInstance()->trans($message, $parameters, DuplicateOrder::DOMAIN_NAME);
     }
 }
