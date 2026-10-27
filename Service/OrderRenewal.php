@@ -32,10 +32,13 @@ use Thelia\Model\ProductSaleElementsQuery;
  * CART_ADDITEM throwing InvalidCartException before the core adds the line, the stock check of
  * the core) or a product no longer sold is left out, and the others go on. When no line can be
  * put back, or on any other failure, the transaction is rolled back and the session names its
- * cart again: the cart is as it was.
+ * cart and the token of its cookie again: the cart is as it was.
  */
 class OrderRenewal
 {
+    /** The token Thelia\Core\EventListener\ResponseListener turns into the cart cookie. */
+    private const CART_COOKIE_TOKEN = 'cart_use_cookie';
+
     public function __construct(
         private readonly EventDispatcherInterface $dispatcher,
     ) {
@@ -50,6 +53,8 @@ class OrderRenewal
     public function renew(Order $order, Session $session): RenewalReport
     {
         $originalCartId = $session->get(Session::SESSION_CART_ID_NAME);
+        $hadCookieToken = $session->has(self::CART_COOKIE_TOKEN);
+        $originalCookieToken = $session->get(self::CART_COOKIE_TOKEN);
         $connection = Propel::getWriteConnection(CartTableMap::DATABASE_NAME);
         $connection->beginTransaction();
 
@@ -158,6 +163,13 @@ class OrderRenewal
                 $session->remove(Session::SESSION_CART_ID_NAME);
             } else {
                 $session->set(Session::SESSION_CART_ID_NAME, $originalCartId);
+            }
+
+            // CART_PERSIST wrote the token of the removed cart: left there, the response makes it the cart cookie.
+            if ($hadCookieToken) {
+                $session->set(self::CART_COOKIE_TOKEN, $originalCookieToken);
+            } else {
+                $session->remove(self::CART_COOKIE_TOKEN);
             }
 
             throw $e;
