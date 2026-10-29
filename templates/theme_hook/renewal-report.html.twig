@@ -1,0 +1,10 @@
+{# What the last renewal changed against the order, above the cart (Hook/Theme/RenewalReportThemeHook).
+   The products are escaped here: the SnackBar of Flexy prints its text raw. #}
+{% if removed is not empty %}
+    {% set text %}<p>{{ labels.removed }}</p><ul>{% for product in removed %}<li>{{ product }}</li>{% endfor %}</ul>{% endset %}
+    <twig:Molecules:SnackBar:Base variant="error" :withIcon="true" :text="text" class="mb-6" data-duplicate-order-removed="true" />
+{% endif %}
+{% if adjusted is not empty %}
+    {% set text %}<p>{{ labels.adjusted }}</p><ul>{% for product in adjusted %}<li>{{ product }}</li>{% endfor %}</ul>{% endset %}
+    <twig:Molecules:SnackBar:Base variant="warning" :withIcon="true" :text="text" class="mb-6" data-duplicate-order-adjusted="true" />
+{% endif %}
